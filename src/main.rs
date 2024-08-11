@@ -91,6 +91,9 @@ fn main() {
                 println!("{}", token_to_string(String::from(c).as_str()));
                 *before = String::new();
             }
+            ("", '0') => {
+                println!("NUMBER 0 0.0");
+            }
             ("=", _) | ("!", _) | ("<", _) | (">", _) | ("/", _) => {
                 println!("{}", token_to_string(&before));
                 *before = String::new();
@@ -99,14 +102,13 @@ fn main() {
             ("", '=') | ("", '!') | ("", '<') | ("", '>') | ("", '/') | ("", '\"') => {
                 *before = String::from(c);
             }
-            (s, '"') if s.len() > 0 && s.starts_with("\"") => {
+            (s, '"') if s.starts_with("\"") => {
                 println!("STRING \"{0}\" {0}", before.trim_matches('"'));
                 *before = String::new();
             }
             (s, c) if s.starts_with("\"") => {
                 before.push_str(String::from(c).as_str());
             }
-            (_, w) if w.is_whitespace() => {}
             ("", c) if ('1'..='9').contains(&c) => {
                 *before = String::from(c);
             }
@@ -147,10 +149,28 @@ fn main() {
                 if !s.contains('.') {
                     new_s.push_str(".0");
                 }
+                while new_s.contains('.') && new_s.ends_with("00") {
+                    new_s.pop();
+                }
+                if new_s.contains('.')
+                    && new_s.ends_with("0")
+                    && ('1'..='9').contains(&new_s.chars().nth(new_s.len() - 2).unwrap())
+                {
+                    new_s.pop();
+                }
                 println!("NUMBER {} {}", s, new_s);
                 *before = String::new();
                 match_char(before, c, code, is_comment, current_line);
             }
+            (_, c) if c.is_alphanumeric() || c == '_' => {
+                before.push_str(String::from(c).as_str());
+            }
+            (s, _) if s.len() > 0 => {
+                println!("IDENTIFIER {} null", s);
+                *before = String::new();
+                match_char(before, c, code, is_comment, current_line);
+            }
+            (_, w) if w.is_whitespace() => {}
             _ => {
                 eprintln!("[line {0}] Error: Unexpected character: {c}", *current_line);
                 *code = 65;
@@ -197,8 +217,20 @@ fn main() {
                         if !before.contains('.') {
                             new_s.push_str(".0");
                         }
+                        while new_s.contains('.') && new_s.ends_with("00") {
+                            new_s.pop();
+                        }
+                        if new_s.contains('.')
+                            && new_s.ends_with("0")
+                            && ('1'..='9').contains(&new_s.chars().nth(new_s.len() - 2).unwrap())
+                        {
+                            new_s.pop();
+                        }
                         println!("NUMBER {} {}", before, new_s);
                     }
+                }
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    println!("IDENTIFIER {} null", before);
                 }
                 _ => {
                     println!("{}", token_to_string(&before));
