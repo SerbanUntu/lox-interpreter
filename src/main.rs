@@ -47,8 +47,24 @@ fn main() {
                 println!("BANG ! null");
                 return match_char("", c, code);
             }
+            ("<", '=') => {
+                println!("LESS_EQUAL <= null");
+            }
+            ("<", _) => {
+                println!("LESS < null");
+                return match_char("", c, code);
+            }
+            (">", '=') => {
+                println!("GREATER_EQUAL >= null");
+            }
+            (">", _) => {
+                println!("GREATER > null");
+                return match_char("", c, code);
+            }
             ("", '=') => return "=",
             ("", '!') => return "!",
+            ("", '<') => return "<",
+            ("", '>') => return ">",
             ("", '(') => {
                 println!("LEFT_PAREN ( null");
             }
@@ -99,6 +115,8 @@ fn main() {
         match before {
             "=" => println!("EQUAL = null"),
             "!" => println!("BANG ! null"),
+            "<" => println!("LESS ! null"),
+            ">" => println!("GREATER ! null"),
             _ => {}
         }
         println!("EOF  null");
