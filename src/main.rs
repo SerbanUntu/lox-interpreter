@@ -15,22 +15,28 @@ fn main() {
     match command.as_str() {
         "tokenize" => {
             // You can use print statements as follows for debugging, they'll be visible when running tests.
-            writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
+            writeln!(io::stderr(), "Results from scanner").unwrap();
 
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
                 String::new()
             });
 
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
-            }
+            tokenize(&file_contents)
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
             return;
         }
+    }
+
+    fn tokenize(file_contents: &String) {
+        file_contents.chars().for_each(|c| match c {
+            '(' => println!("LEFT_PAREN ( null"),
+            ')' => println!("RIGHT_PAREN ) null"),
+            w if w.is_whitespace() => {}
+            _ => panic!("Unimplemented"),
+        });
+        println!("EOF  null");
     }
 }
