@@ -73,7 +73,6 @@ fn main() {
                 *is_comment = false;
                 *current_line += 1;
             }
-            (_, w) if w.is_whitespace() => {}
             ("=", '=') | ("!", '=') | ("<", '=') | (">", '=') => {
                 before.push_str(String::from(c).as_str());
                 println!("{}", token_to_string(before.as_str()));
@@ -97,9 +96,17 @@ fn main() {
                 *before = String::new();
                 match_char(before, c, code, is_comment, current_line);
             }
-            ("", '=') | ("", '!') | ("", '<') | ("", '>') | ("", '/') => {
+            ("", '=') | ("", '!') | ("", '<') | ("", '>') | ("", '/') | ("", '\"') => {
                 *before = String::from(c);
             }
+            (s, '"') if s.len() > 0 && s.starts_with("\"") => {
+                println!("STRING \"{0}\" {0}", before.trim_matches('"'));
+                *before = String::new();
+            }
+            (s, c) if s.starts_with("\"") => {
+                before.push_str(String::from(c).as_str());
+            }
+            (_, w) if w.is_whitespace() => {}
             _ => {
                 eprintln!("[line {0}] Error: Unexpected character: {c}", *current_line);
                 *code = 65;
@@ -132,7 +139,12 @@ fn main() {
             }
         }
         if before.as_str() != "" {
-            println!("{}", token_to_string(&before));
+            if before.starts_with("\"") {
+                eprintln!("[line {0}] Error: Unterminated string.", current_line);
+                code = 65;
+            } else {
+                println!("{}", token_to_string(&before));
+            }
         }
         println!("EOF  null");
         code
