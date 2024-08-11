@@ -33,7 +33,12 @@ fn main() {
 
     fn tokenize(file_contents: &String) -> i32 {
         let mut code = 0;
+        let mut current_token = "";
         for c in file_contents.chars() {
+            if current_token == "=" && c != '=' {
+                println!("EQUAL = null");
+                current_token = "";
+            }
             match c {
                 '(' => println!("LEFT_PAREN ( null"),
                 ')' => println!("RIGHT_PAREN ) null"),
@@ -46,11 +51,22 @@ fn main() {
                 ';' => println!("SEMICOLON ; null"),
                 '*' => println!("STAR * null"),
                 '/' => println!("SLASH / null"),
+                '=' => {
+                    if current_token == "=" {
+                        println!("EQUAL_EQUAL == null");
+                        current_token = "";
+                    } else {
+                        current_token = "=";
+                    }
+                }
                 _ => {
                     eprintln!("[line 1] Error: Unexpected character: {c}");
                     code = 65;
                 }
             }
+        }
+        if current_token == "=" {
+            println!("EQUAL = null");
         }
         println!("EOF  null");
         code
