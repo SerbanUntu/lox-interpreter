@@ -57,7 +57,13 @@ fn main() {
         format!("{name} {token} null")
     }
 
-    fn match_char(before: &mut String, c: char, code: &mut i32, is_comment: &mut bool) {
+    fn match_char(
+        before: &mut String,
+        c: char,
+        code: &mut i32,
+        is_comment: &mut bool,
+        current_line: &mut u32,
+    ) {
         if *is_comment {
             return;
         }
@@ -66,6 +72,11 @@ fn main() {
                 *is_comment = true;
                 *before = String::new();
             }
+            (_, '\n') => {
+                *is_comment = false;
+                *current_line += 1;
+            }
+            (_, w) if w.is_whitespace() => {}
             ("=", '=') | ("!", '=') | ("<", '=') | (">", '=') => {
                 before.push_str(String::from(c).as_str());
                 println!("{}", token_to_string(before.as_str()));
@@ -87,13 +98,13 @@ fn main() {
             ("=", _) | ("!", _) | ("<", _) | (">", _) | ("/", _) => {
                 println!("{}", token_to_string(&before));
                 *before = String::new();
-                match_char(before, c, code, is_comment);
+                match_char(before, c, code, is_comment, current_line);
             }
             ("", '=') | ("", '!') | ("", '<') | ("", '>') | ("", '/') => {
                 *before = String::from(c);
             }
             _ => {
-                eprintln!("[line 1] Error: Unexpected character: {c}");
+                eprintln!("[line {0}] Error: Unexpected character: {c}", *current_line);
                 *code = 65;
                 *before = String::new();
             }
@@ -104,8 +115,15 @@ fn main() {
         let mut code = 0;
         let mut before = String::new();
         let mut is_comment = false;
+        let mut current_line = 1;
         for c in file_contents.chars() {
-            match_char(&mut before, c, &mut code, &mut is_comment);
+            match_char(
+                &mut before,
+                c,
+                &mut code,
+                &mut is_comment,
+                &mut current_line,
+            );
         }
         if before.as_str() != "" {
             println!("{}", token_to_string(&before));
