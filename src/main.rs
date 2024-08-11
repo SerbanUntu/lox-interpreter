@@ -34,6 +34,8 @@ fn main() {
         file_contents.chars().for_each(|c| match c {
             '(' => println!("LEFT_PAREN ( null"),
             ')' => println!("RIGHT_PAREN ) null"),
+            '{' => println!("LEFT_BRACE {{ null"),
+            '}' => println!("RIGHT_BRACE }} null"),
             w if w.is_whitespace() => {}
             _ => panic!("Unimplemented"),
         });
