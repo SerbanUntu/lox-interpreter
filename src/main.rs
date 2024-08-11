@@ -64,9 +64,6 @@ fn main() {
         is_comment: &mut bool,
         current_line: &mut u32,
     ) {
-        if *is_comment {
-            return;
-        }
         match (before.as_str(), c) {
             ("/", '/') => {
                 *is_comment = true;
@@ -117,13 +114,22 @@ fn main() {
         let mut is_comment = false;
         let mut current_line = 1;
         for c in file_contents.chars() {
-            match_char(
-                &mut before,
-                c,
-                &mut code,
-                &mut is_comment,
-                &mut current_line,
-            );
+            match (c, is_comment) {
+                ('\n', _) => {
+                    is_comment = false;
+                    current_line += 1;
+                }
+                (_, false) => {
+                    match_char(
+                        &mut before,
+                        c,
+                        &mut code,
+                        &mut is_comment,
+                        &mut current_line,
+                    );
+                }
+                _ => {}
+            }
         }
         if before.as_str() != "" {
             println!("{}", token_to_string(&before));
