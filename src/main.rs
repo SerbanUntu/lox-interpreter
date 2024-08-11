@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::io::{self, Write};
+use std::process::exit;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -22,7 +23,7 @@ fn main() {
                 String::new()
             });
 
-            tokenize(&file_contents)
+            exit(tokenize(&file_contents));
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
@@ -30,22 +31,28 @@ fn main() {
         }
     }
 
-    fn tokenize(file_contents: &String) {
-        file_contents.chars().for_each(|c| match c {
-            '(' => println!("LEFT_PAREN ( null"),
-            ')' => println!("RIGHT_PAREN ) null"),
-            '{' => println!("LEFT_BRACE {{ null"),
-            '}' => println!("RIGHT_BRACE }} null"),
-            ',' => println!("COMMA , null"),
-            '.' => println!("DOT . null"),
-            '-' => println!("MINUS - null"),
-            '+' => println!("PLUS + null"),
-            ';' => println!("SEMICOLON ; null"),
-            '*' => println!("STAR * null"),
-            '/' => println!("SLASH / null"),
-            w if w.is_whitespace() => {}
-            _ => panic!("Unimplemented"),
-        });
+    fn tokenize(file_contents: &String) -> i32 {
+        let mut code = 0;
+        for c in file_contents.chars() {
+            match c {
+                '(' => println!("LEFT_PAREN ( null"),
+                ')' => println!("RIGHT_PAREN ) null"),
+                '{' => println!("LEFT_BRACE {{ null"),
+                '}' => println!("RIGHT_BRACE }} null"),
+                ',' => println!("COMMA , null"),
+                '.' => println!("DOT . null"),
+                '-' => println!("MINUS - null"),
+                '+' => println!("PLUS + null"),
+                ';' => println!("SEMICOLON ; null"),
+                '*' => println!("STAR * null"),
+                '/' => println!("SLASH / null"),
+                _ => {
+                    eprintln!("[line 1] Error: Unexpected character: {c}");
+                    code = 65;
+                }
+            }
+        }
         println!("EOF  null");
+        code
     }
 }
