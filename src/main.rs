@@ -107,6 +107,50 @@ fn main() {
                 before.push_str(String::from(c).as_str());
             }
             (_, w) if w.is_whitespace() => {}
+            ("", c) if ('1'..='9').contains(&c) => {
+                *before = String::from(c);
+            }
+            (s, '.')
+                if s.len() > 0
+                    && ('1'..='9').contains(&s.chars().nth(0).unwrap())
+                    && !s.contains('.') =>
+            {
+                before.push_str(".");
+            }
+            (s, c)
+                if s.len() > 0
+                    && ('1'..='9').contains(&s.chars().nth(0).unwrap())
+                    && ('0'..='9').contains(&c)
+                    && s.ends_with('.') =>
+            {
+                before.push_str(String::from(c).as_str());
+            }
+            (s, c)
+                if s.len() > 0
+                    && ('1'..='9').contains(&s.chars().nth(0).unwrap())
+                    && s.ends_with('.') =>
+            {
+                println!("NUMBER {0} {0}.0", s.trim_matches('.'));
+                println!("{}", token_to_string("."));
+                *before = String::new();
+                match_char(before, c, code, is_comment, current_line);
+            }
+            (s, c)
+                if ('0'..='9').contains(&c)
+                    && s.len() > 0
+                    && ('1'..='9').contains(&s.chars().nth(0).unwrap()) =>
+            {
+                before.push_str(String::from(c).as_str());
+            }
+            (s, c) if s.len() > 0 && ('1'..='9').contains(&s.chars().nth(0).unwrap()) => {
+                let mut new_s = String::from(s);
+                if !s.contains('.') {
+                    new_s.push_str(".0");
+                }
+                println!("NUMBER {} {}", s, new_s);
+                *before = String::new();
+                match_char(before, c, code, is_comment, current_line);
+            }
             _ => {
                 eprintln!("[line {0}] Error: Unexpected character: {c}", *current_line);
                 *code = 65;
@@ -138,12 +182,27 @@ fn main() {
                 _ => {}
             }
         }
-        if before.as_str() != "" {
-            if before.starts_with("\"") {
-                eprintln!("[line {0}] Error: Unterminated string.", current_line);
-                code = 65;
-            } else {
-                println!("{}", token_to_string(&before));
+        if before.len() > 0 {
+            match before.chars().nth(0).unwrap() {
+                '\"' => {
+                    eprintln!("[line {0}] Error: Unterminated string.", current_line);
+                    code = 65;
+                }
+                '1'..='9' => {
+                    if before.ends_with('.') {
+                        println!("NUMBER {0} {0}.0", before.trim_matches('.'));
+                        println!("{}", token_to_string("."));
+                    } else {
+                        let mut new_s = before.clone();
+                        if !before.contains('.') {
+                            new_s.push_str(".0");
+                        }
+                        println!("NUMBER {} {}", before, new_s);
+                    }
+                }
+                _ => {
+                    println!("{}", token_to_string(&before));
+                }
             }
         }
         println!("EOF  null");
