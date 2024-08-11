@@ -31,93 +31,84 @@ fn main() {
         }
     }
 
-    fn match_char(before: &str, c: char, code: &mut i32) -> &'static str {
-        match (before, c) {
-            ("=", '=') => {
-                println!("EQUAL_EQUAL == null");
+    fn token_to_string(token: &str) -> String {
+        let name = match token {
+            "=" => "EQUAL",
+            "==" => "EQUAL_EQUAL",
+            "!" => "BANG",
+            "!=" => "BANG_EQUAL",
+            "<" => "LESS",
+            ">" => "GREATER",
+            "<=" => "LESS_EQUAL",
+            ">=" => "GREATER_EQUAL",
+            "(" => "LEFT_PAREN",
+            ")" => "RIGHT_PAREN",
+            "{" => "LEFT_BRACE",
+            "}" => "RIGHT_BRACE",
+            "." => "DOT",
+            "," => "COMMA",
+            ";" => "SEMICOLON",
+            "+" => "PLUS",
+            "-" => "MINUS",
+            "*" => "STAR",
+            "/" => "SLASH",
+            _ => panic!("Invalid token!"),
+        };
+        format!("{name} {token} null")
+    }
+
+    fn match_char(before: &mut String, c: char, code: &mut i32, is_comment: &mut bool) {
+        if *is_comment {
+            return;
+        }
+        match (before.as_str(), c) {
+            ("/", '/') => {
+                *is_comment = true;
+                *before = String::new();
             }
-            ("=", _) => {
-                println!("EQUAL = null");
-                return match_char("", c, code);
+            ("=", '=') | ("!", '=') | ("<", '=') | (">", '=') => {
+                before.push_str(String::from(c).as_str());
+                println!("{}", token_to_string(before.as_str()));
+                *before = String::new();
             }
-            ("!", '=') => {
-                println!("BANG_EQUAL != null");
+            ("", '(')
+            | ("", ')')
+            | ("", '{')
+            | ("", '}')
+            | ("", ',')
+            | ("", '.')
+            | ("", '-')
+            | ("", '+')
+            | ("", ';')
+            | ("", '*') => {
+                println!("{}", token_to_string(String::from(c).as_str()));
+                *before = String::new();
             }
-            ("!", _) => {
-                println!("BANG ! null");
-                return match_char("", c, code);
+            ("=", _) | ("!", _) | ("<", _) | (">", _) | ("/", _) => {
+                println!("{}", token_to_string(&before));
+                *before = String::new();
+                match_char(before, c, code, is_comment);
             }
-            ("<", '=') => {
-                println!("LESS_EQUAL <= null");
-            }
-            ("<", _) => {
-                println!("LESS < null");
-                return match_char("", c, code);
-            }
-            (">", '=') => {
-                println!("GREATER_EQUAL >= null");
-            }
-            (">", _) => {
-                println!("GREATER > null");
-                return match_char("", c, code);
-            }
-            ("", '=') => return "=",
-            ("", '!') => return "!",
-            ("", '<') => return "<",
-            ("", '>') => return ">",
-            ("", '(') => {
-                println!("LEFT_PAREN ( null");
-            }
-            ("", ')') => {
-                println!("RIGHT_PAREN ) null");
-            }
-            ("", '{') => {
-                println!("LEFT_BRACE {{ null");
-            }
-            ("", '}') => {
-                println!("RIGHT_BRACE }} null");
-            }
-            ("", ',') => {
-                println!("COMMA , null");
-            }
-            ("", '.') => {
-                println!("DOT . null");
-            }
-            ("", '-') => {
-                println!("MINUS - null");
-            }
-            ("", '+') => {
-                println!("PLUS + null");
-            }
-            ("", ';') => {
-                println!("SEMICOLON ; null");
-            }
-            ("", '*') => {
-                println!("STAR * null");
-            }
-            ("", '/') => {
-                println!("SLASH / null");
+            ("", '=') | ("", '!') | ("", '<') | ("", '>') | ("", '/') => {
+                *before = String::from(c);
             }
             _ => {
                 eprintln!("[line 1] Error: Unexpected character: {c}");
                 *code = 65;
+                *before = String::new();
             }
         }
-        ""
     }
 
     fn tokenize(file_contents: &String) -> i32 {
         let mut code = 0;
-        let mut before = "";
+        let mut before = String::new();
+        let mut is_comment = false;
         for c in file_contents.chars() {
-            before = match_char(before, c, &mut code);
+            match_char(&mut before, c, &mut code, &mut is_comment);
         }
-        match before {
-            "=" => println!("EQUAL = null"),
-            "!" => println!("BANG ! null"),
-            "<" => println!("LESS ! null"),
-            ">" => println!("GREATER ! null"),
-            _ => {}
+        if before.as_str() != "" {
+            println!("{}", token_to_string(&before));
         }
         println!("EOF  null");
         code
