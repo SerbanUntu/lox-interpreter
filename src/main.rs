@@ -31,42 +31,75 @@ fn main() {
         }
     }
 
-    fn tokenize(file_contents: &String) -> i32 {
-        let mut code = 0;
-        let mut current_token = "";
-        for c in file_contents.chars() {
-            if current_token == "=" && c != '=' {
-                println!("EQUAL = null");
-                current_token = "";
+    fn match_char(before: &str, c: char, code: &mut i32) -> &'static str {
+        match (before, c) {
+            ("=", '=') => {
+                println!("EQUAL_EQUAL == null");
             }
-            match c {
-                '(' => println!("LEFT_PAREN ( null"),
-                ')' => println!("RIGHT_PAREN ) null"),
-                '{' => println!("LEFT_BRACE {{ null"),
-                '}' => println!("RIGHT_BRACE }} null"),
-                ',' => println!("COMMA , null"),
-                '.' => println!("DOT . null"),
-                '-' => println!("MINUS - null"),
-                '+' => println!("PLUS + null"),
-                ';' => println!("SEMICOLON ; null"),
-                '*' => println!("STAR * null"),
-                '/' => println!("SLASH / null"),
-                '=' => {
-                    if current_token == "=" {
-                        println!("EQUAL_EQUAL == null");
-                        current_token = "";
-                    } else {
-                        current_token = "=";
-                    }
-                }
-                _ => {
-                    eprintln!("[line 1] Error: Unexpected character: {c}");
-                    code = 65;
-                }
+            ("=", _) => {
+                println!("EQUAL = null");
+                return match_char("", c, code);
+            }
+            ("!", '=') => {
+                println!("BANG_EQUAL != null");
+            }
+            ("!", _) => {
+                println!("BANG ! null");
+                return match_char("", c, code);
+            }
+            ("", '=') => return "=",
+            ("", '!') => return "!",
+            ("", '(') => {
+                println!("LEFT_PAREN ( null");
+            }
+            ("", ')') => {
+                println!("RIGHT_PAREN ) null");
+            }
+            ("", '{') => {
+                println!("LEFT_BRACE {{ null");
+            }
+            ("", '}') => {
+                println!("RIGHT_BRACE }} null");
+            }
+            ("", ',') => {
+                println!("COMMA , null");
+            }
+            ("", '.') => {
+                println!("DOT . null");
+            }
+            ("", '-') => {
+                println!("MINUS - null");
+            }
+            ("", '+') => {
+                println!("PLUS + null");
+            }
+            ("", ';') => {
+                println!("SEMICOLON ; null");
+            }
+            ("", '*') => {
+                println!("STAR * null");
+            }
+            ("", '/') => {
+                println!("SLASH / null");
+            }
+            _ => {
+                eprintln!("[line 1] Error: Unexpected character: {c}");
+                *code = 65;
             }
         }
-        if current_token == "=" {
-            println!("EQUAL = null");
+        ""
+    }
+
+    fn tokenize(file_contents: &String) -> i32 {
+        let mut code = 0;
+        let mut before = "";
+        for c in file_contents.chars() {
+            before = match_char(before, c, &mut code);
+        }
+        match before {
+            "=" => println!("EQUAL = null"),
+            "!" => println!("BANG ! null"),
+            _ => {}
         }
         println!("EOF  null");
         code
