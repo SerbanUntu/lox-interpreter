@@ -1,6 +1,7 @@
 use core::fmt;
+use std::iter;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum TokenVariant {
     Equal,
     EqualEqual,
@@ -26,6 +27,7 @@ enum TokenVariant {
     Number(f64),
     String(String),
     Identifier,
+    Comment,
 
     And,
     Class,
@@ -70,6 +72,7 @@ impl fmt::Display for TokenVariant {
             TokenVariant::Identifier => write!(f, "IDENTIFIER"),
             TokenVariant::String(_) => write!(f, "STRING"),
             TokenVariant::Number(_) => write!(f, "NUMBER"),
+            TokenVariant::Comment => write!(f, "COMMENT"),
             TokenVariant::And => write!(f, "AND"),
             TokenVariant::Class => write!(f, "CLASS"),
             TokenVariant::Else => write!(f, "ELSE"),
@@ -91,8 +94,8 @@ impl fmt::Display for TokenVariant {
     }
 }
 
-#[derive(Debug)]
-struct Token {
+#[derive(Debug, PartialEq)]
+pub struct Token {
     variant: TokenVariant,
     lexeme: String,
 }
@@ -110,215 +113,206 @@ impl fmt::Display for Token {
     }
 }
 
-impl Token {
+impl From<&str> for Token {
     fn from(literal: &str) -> Self {
-        let variant = match literal {
-            "=" => TokenVariant::Equal,
-            "==" => TokenVariant::EqualEqual,
-            "!" => TokenVariant::Bang,
-            "!=" => TokenVariant::BangEqual,
-            "<" => TokenVariant::Less,
-            ">" => TokenVariant::Greater,
-            "<=" => TokenVariant::LessEqual,
-            ">=" => TokenVariant::GreaterEqual,
-            "(" => TokenVariant::LeftParen,
-            ")" => TokenVariant::RightParen,
-            "{" => TokenVariant::LeftBrace,
-            "}" => TokenVariant::RightBrace,
-            "." => TokenVariant::Dot,
-            "," => TokenVariant::Comma,
-            ";" => TokenVariant::Semicolon,
-            "+" => TokenVariant::Plus,
-            "-" => TokenVariant::Minus,
-            "*" => TokenVariant::Star,
-            "/" => TokenVariant::Slash,
-            "and" => TokenVariant::And,
-            "class" => TokenVariant::Class,
-            "else" => TokenVariant::Else,
-            "false" => TokenVariant::False,
-            "fun" => TokenVariant::Fun,
-            "for" => TokenVariant::For,
-            "if" => TokenVariant::If,
-            "nil" => TokenVariant::Nil,
-            "or" => TokenVariant::Or,
-            "print" => TokenVariant::Print,
-            "return" => TokenVariant::Return,
-            "super" => TokenVariant::Super,
-            "this" => TokenVariant::This,
-            "true" => TokenVariant::True,
-            "var" => TokenVariant::Var,
-            "while" => TokenVariant::While,
-            "" => TokenVariant::Eof,
-            s if s.starts_with("\"") => TokenVariant::String(literal.trim_matches('\"').to_owned()),
-            s if s.len() > 0 && ('0'..='9').contains(&s.chars().nth(0).unwrap()) => {
-                TokenVariant::Number(s.parse().unwrap())
-            }
-            _ => TokenVariant::Identifier,
-        };
         Self {
-            variant,
+            variant: match literal {
+                "=" => TokenVariant::Equal,
+                "==" => TokenVariant::EqualEqual,
+                "!" => TokenVariant::Bang,
+                "!=" => TokenVariant::BangEqual,
+                "<" => TokenVariant::Less,
+                ">" => TokenVariant::Greater,
+                "<=" => TokenVariant::LessEqual,
+                ">=" => TokenVariant::GreaterEqual,
+                "(" => TokenVariant::LeftParen,
+                ")" => TokenVariant::RightParen,
+                "{" => TokenVariant::LeftBrace,
+                "}" => TokenVariant::RightBrace,
+                "." => TokenVariant::Dot,
+                "," => TokenVariant::Comma,
+                ";" => TokenVariant::Semicolon,
+                "+" => TokenVariant::Plus,
+                "-" => TokenVariant::Minus,
+                "*" => TokenVariant::Star,
+                "/" => TokenVariant::Slash,
+                "//" => TokenVariant::Comment,
+                "and" => TokenVariant::And,
+                "class" => TokenVariant::Class,
+                "else" => TokenVariant::Else,
+                "false" => TokenVariant::False,
+                "fun" => TokenVariant::Fun,
+                "for" => TokenVariant::For,
+                "if" => TokenVariant::If,
+                "nil" => TokenVariant::Nil,
+                "or" => TokenVariant::Or,
+                "print" => TokenVariant::Print,
+                "return" => TokenVariant::Return,
+                "super" => TokenVariant::Super,
+                "this" => TokenVariant::This,
+                "true" => TokenVariant::True,
+                "var" => TokenVariant::Var,
+                "while" => TokenVariant::While,
+                "" => TokenVariant::Eof,
+                s if s.starts_with("\"") && s.ends_with("\"") && s.len() > 1 => {
+                    TokenVariant::String(literal.trim_matches('\"').to_owned())
+                }
+                s if s.parse::<f64>().is_ok() => TokenVariant::Number(s.parse().unwrap()),
+                _ => TokenVariant::Identifier,
+            },
             lexeme: literal.to_owned(),
         }
     }
 }
 
-fn match_char(
-    before: &mut String,
-    c: Option<char>,
-    code: &mut i32,
-    is_comment: &mut bool,
-    current_line: &mut u32,
-    tokens: &mut Vec<Token>,
-) {
-    match (before.as_str(), c) {
-        ("/", Some('/')) => {
-            *is_comment = true;
-            *before = String::new();
-        }
-        ("=", Some('=')) | ("!", Some('=')) | ("<", Some('=')) | (">", Some('=')) => {
-            before.push_str(c.unwrap().encode_utf8(&mut [0; 4]));
-            print_data(before.as_str());
-            *before = String::new();
-        }
-        ("", Some('('))
-        | ("", Some(')'))
-        | ("", Some('{'))
-        | ("", Some('}'))
-        | ("", Some(','))
-        | ("", Some('.'))
-        | ("", Some('-'))
-        | ("", Some('+'))
-        | ("", Some(';'))
-        | ("", Some('*'))
-        | ("", Some('0')) => {
-            print_data(c.unwrap().encode_utf8(&mut [0; 4]));
-        }
-        ("=", _) | ("!", _) | ("<", _) | (">", _) | ("/", _) => {
-            print_data(&before);
-            *before = String::new();
-            match_char(before, c, code, is_comment, current_line, tokens);
-        }
-        ("", Some('='))
-        | ("", Some('!'))
-        | ("", Some('<'))
-        | ("", Some('>'))
-        | ("", Some('/'))
-        | ("", Some('\"')) => {
-            *before = String::from(c.unwrap());
-        }
-        (s, Some('"')) if s.starts_with("\"") => {
-            before.push_str("\"");
-            print_data(before);
-            *before = String::new();
-        }
-        (s, Some(c)) if s.starts_with("\"") => {
-            before.push_str(c.encode_utf8(&mut [0; 4]));
-        }
-        ("", Some(c)) if ('1'..='9').contains(&c) => {
-            *before = String::from(c);
-        }
-        (s, Some('.'))
-            if s.len() > 0
-                && ('1'..='9').contains(&s.chars().nth(0).unwrap())
-                && !s.contains('.') =>
-        {
-            before.push_str(".");
-        }
-        (s, Some(c))
-            if s.len() > 0
-                && ('1'..='9').contains(&s.chars().nth(0).unwrap())
-                && ('0'..='9').contains(&c)
-                && s.ends_with('.') =>
-        {
-            before.push_str(c.encode_utf8(&mut [0; 4]));
-        }
-        (s, c)
-            if s.len() > 0
-                && ('1'..='9').contains(&s.chars().nth(0).unwrap())
-                && s.ends_with('.') =>
-        {
-            print_data(s.trim_matches('.'));
-            print_data(".");
-            *before = String::new();
-            match_char(before, c, code, is_comment, current_line, tokens);
-        }
-        (s, Some(c))
-            if ('0'..='9').contains(&c)
-                && s.len() > 0
-                && ('1'..='9').contains(&s.chars().nth(0).unwrap()) =>
-        {
-            before.push_str(c.encode_utf8(&mut [0; 4]));
-        }
-        (s, c) if s.len() > 0 && ('1'..='9').contains(&s.chars().nth(0).unwrap()) => {
-            print_data(s);
-            *before = String::new();
-            match_char(before, c, code, is_comment, current_line, tokens);
-        }
-        (_, Some(c)) if c.is_alphanumeric() || c == '_' => {
-            before.push_str(c.encode_utf8(&mut [0; 4]));
-        }
-        (s, _) if s.len() > 0 && !s.starts_with("\"") => {
-            print_data(s);
-            *before = String::new();
-            match_char(before, c, code, is_comment, current_line, tokens);
-        }
-        (s, None) if s.starts_with("\"") => {
-            eprintln!("[line {0}] Error: Unterminated string.", current_line);
-            *code = 65;
-            *before = String::new();
-        }
-        (_, Some(w)) if w.is_whitespace() => {}
-        (_, None) => {}
-        (_, Some(c)) => {
-            eprintln!("[line {0}] Error: Unexpected character: {c}", *current_line);
-            *code = 65;
-            *before = String::new();
+impl From<TokenVariant> for Token {
+    fn from(variant: TokenVariant) -> Self {
+        Self {
+            variant,
+            lexeme: "".to_owned(),
         }
     }
 }
 
-fn print_data(literal: &str) {
-    //TODO change this
-    println!("{}", Token::from(literal));
+#[derive(Debug)]
+enum LexicalErrorVariant {
+    UnexpectedCharacter(char),
+    UnterminatedString,
 }
 
-pub fn tokenize(file_contents: &String) -> i32 {
-    let mut code = 0;
-    let mut before = String::new();
+impl fmt::Display for LexicalErrorVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LexicalErrorVariant::UnexpectedCharacter(c) => write!(f, "Unexpected character: {c}"),
+            LexicalErrorVariant::UnterminatedString => write!(f, "Unterminated string."),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LexicalError {
+    variant: LexicalErrorVariant,
+    line: u32,
+}
+
+impl LexicalError {
+    fn new(variant: LexicalErrorVariant, line: u32) -> Self {
+        Self { variant, line }
+    }
+}
+
+impl fmt::Display for LexicalError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[line {}] Error: {}", self.line, self.variant)
+    }
+}
+
+fn process_char(buf: &mut String, c: Option<char>) -> (Vec<Token>, Vec<LexicalErrorVariant>) {
+    let mut tokens: Vec<Token> = Vec::new();
+    let mut errors: Vec<LexicalErrorVariant> = Vec::new();
+    let joined = format!("{}{}", buf.as_str(), c.unwrap_or('\0'));
+    let try_token = Token::from(joined.as_str());
+    match try_token.variant {
+        TokenVariant::Bang
+        | TokenVariant::Equal
+        | TokenVariant::Greater
+        | TokenVariant::Less
+        | TokenVariant::Slash => {
+            buf.push(c.unwrap());
+        }
+        TokenVariant::Number(_) | TokenVariant::Identifier | TokenVariant::Eof => {
+            match (buf.as_str(), c) {
+                (s, _) if matches!(s, "=" | "!" | "<" | ">" | "/") => {
+                    tokens.push(Token::from(s));
+                    buf.clear();
+                    let (mut t, mut e) = process_char(buf, c);
+                    tokens.append(&mut t);
+                    errors.append(&mut e);
+                }
+                ("", Some(c)) if matches!(c, '\"' | '1'..='9') => {
+                    buf.push(c);
+                }
+                (s, Some(any_char)) if s.starts_with('\"') => {
+                    buf.push(any_char);
+                }
+                (s, Some('.')) if s.parse::<u64>().is_ok() => {
+                    buf.push('.');
+                }
+                (s, Some(digit)) if s.parse::<f64>().is_ok() && digit.is_digit(10) => {
+                    buf.push(digit);
+                }
+                (s, _) if s.parse::<f64>().is_ok() => {
+                    tokens.push(Token::from(s.trim_matches('.')));
+                    if s.ends_with('.') {
+                        tokens.push(Token::from("."));
+                    }
+                    buf.clear();
+                    let (mut t, mut e) = process_char(buf, c);
+                    tokens.append(&mut t);
+                    errors.append(&mut e);
+                }
+                (_, Some(c)) if c.is_alphanumeric() || c == '_' => {
+                    buf.push(c);
+                }
+                (s, _) if !s.is_empty() && !s.starts_with('\"') => {
+                    tokens.push(Token::from(s));
+                    buf.clear();
+                    let (mut t, mut e) = process_char(buf, c);
+                    tokens.append(&mut t);
+                    errors.append(&mut e);
+                }
+                (s, None) if s.starts_with("\"") => {
+                    errors.push(LexicalErrorVariant::UnterminatedString);
+                    buf.clear();
+                }
+                (_, Some(whitespace)) if whitespace.is_whitespace() => {}
+                (_, Some(unexpected)) => {
+                    errors.push(LexicalErrorVariant::UnexpectedCharacter(unexpected));
+                    buf.clear();
+                }
+                (_, None) => {}
+            }
+        }
+        _ => {
+            buf.clear();
+            tokens.push(try_token);
+        }
+    }
+    (tokens, errors)
+}
+
+pub fn tokenize(file_contents: &String) -> (Vec<Token>, Option<Vec<LexicalError>>) {
+    let mut tokens = Vec::new();
+    let mut errors = Vec::new();
+    let mut buf = String::new();
     let mut is_comment = false;
     let mut current_line = 1;
-    let mut tokens: Vec<Token> = Vec::new();
-    for c in file_contents.chars() {
+    for c in file_contents
+        .chars()
+        .map(|x| Some(x))
+        .chain(iter::once(None))
+    {
         match (c, is_comment) {
-            ('\n', _) => {
+            (Some('\n'), _) => {
                 is_comment = false;
                 current_line += 1;
             }
             (_, false) => {
-                match_char(
-                    &mut before,
-                    Some(c),
-                    &mut code,
-                    &mut is_comment,
-                    &mut current_line,
-                    &mut tokens,
-                );
+                let (t, e) = process_char(&mut buf, c);
+                for token in t {
+                    if token.variant == TokenVariant::Comment {
+                        is_comment = true;
+                    } else {
+                        tokens.push(token);
+                    }
+                }
+                for error in e {
+                    errors.push(LexicalError::new(error, current_line));
+                }
             }
             _ => {}
         }
     }
-
-    if before.len() > 0 {
-        match_char(
-            &mut before,
-            None,
-            &mut code,
-            &mut is_comment,
-            &mut current_line,
-            &mut tokens,
-        )
-    }
-
-    print_data("");
-    code
+    tokens.push(Token::from(TokenVariant::Eof));
+    (tokens, (!errors.is_empty()).then(|| errors))
 }

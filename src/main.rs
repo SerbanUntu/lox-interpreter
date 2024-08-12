@@ -25,7 +25,18 @@ fn main() {
                 String::new()
             });
 
-            exit(lexer::tokenize(&file_contents)); //TODO Change this
+            let (tokens, errors) = lexer::tokenize(&file_contents);
+
+            for token in &tokens {
+                println!("{}", token);
+            }
+
+            if let Some(e) = errors {
+                for error in e {
+                    eprintln!("{}", error);
+                }
+                exit(65);
+            }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
