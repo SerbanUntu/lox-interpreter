@@ -2,7 +2,7 @@ use core::fmt;
 use std::iter;
 
 #[derive(Debug, PartialEq)]
-enum TokenVariant {
+pub enum TokenVariant {
     Equal,
     EqualEqual,
     Bang,
@@ -96,8 +96,8 @@ impl fmt::Display for TokenVariant {
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    variant: TokenVariant,
-    lexeme: String,
+    pub variant: TokenVariant,
+    pub lexeme: String,
 }
 
 impl fmt::Display for Token {
