@@ -37,7 +37,10 @@ fn main() {
         "parse" => {
             writeln!(io::stderr(), "Results from parser").unwrap();
             let (tokens, _) = lexer::tokenize(&file_contents);
-            parser::parse(tokens);
+            let abstract_syntax_tree = parser::parse(tokens);
+            if let Some(x) = abstract_syntax_tree.root {
+                println!("{}", x.to_string());
+            }
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();

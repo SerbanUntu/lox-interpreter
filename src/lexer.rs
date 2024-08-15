@@ -1,7 +1,7 @@
 use core::fmt;
 use std::iter;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenVariant {
     Equal,
     EqualEqual,
@@ -94,7 +94,7 @@ impl fmt::Display for TokenVariant {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub variant: TokenVariant,
     pub lexeme: String,
@@ -171,6 +171,18 @@ impl From<TokenVariant> for Token {
             variant,
             lexeme: "".to_owned(),
         }
+    }
+}
+
+impl Token {
+    pub fn short_print(&self) -> String {
+        if let TokenVariant::String(x) = &self.variant {
+            return x.clone();
+        }
+        if let TokenVariant::Number(x) = self.variant {
+            return format!("{:?}", x);
+        }
+        return self.lexeme.clone();
     }
 }
 
