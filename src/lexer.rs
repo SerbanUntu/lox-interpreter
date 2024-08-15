@@ -184,6 +184,13 @@ impl Token {
         }
         return self.lexeme.clone();
     }
+
+    pub fn is_binary_operator(&self) -> bool {
+        match self.variant {
+            TokenVariant::Plus | TokenVariant::Minus | TokenVariant::Star | TokenVariant::Slash => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug)]
