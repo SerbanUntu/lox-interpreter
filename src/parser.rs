@@ -130,7 +130,7 @@ fn parse_sub_expression(
             Ok(ref new_tree) => {
                 if let Some(ref new_node) = new_tree.root {
                     new_node.borrow_mut().group_count += 1;
-                    *index += pos;
+                    *index = pos;
                     return Ok(Rc::clone(&new_node));
                 }
             }
@@ -156,7 +156,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     while i < tokens.len() {
         match tokens[i].variant {
             TokenVariant::Eof => {}
-            _ if tokens[i].is_unary_operator() => match tm {
+            _ if tokens[i].is_unary_operator() && tm != Operator => match tm {
                 Root => {
                     let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
                     ast.root = Some(Rc::clone(&new_node));
@@ -233,7 +233,9 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                             panic!("Expected the nodes to be populated at this point.")
                         }
                     },
-                    _ => panic!("Unhandled regular case: {tm:?}"),
+                    _ => {
+                        panic!("Unhandled regular case: {tm:?}")
+                    }
                 }
                 tm = Operator;
             }
