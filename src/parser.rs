@@ -21,6 +21,15 @@ impl TreeNode {
             group_count,
         }
     }
+
+    fn is_structured(&self) -> bool {
+        match (&self.left, &self.right) {
+            (Some(_), None) => false,
+            (Some(a), Some(b)) => a.borrow().is_structured() && b.borrow().is_structured(),
+            (None, Some(b)) => b.borrow().is_structured(),
+            (None, None) => true,
+        }
+    }
 }
 
 impl ToString for TreeNode {
@@ -64,32 +73,39 @@ impl Tree {
 }
 
 #[derive(Debug)]
-enum ParserErrorVariant {
+enum SyntaxErrorVariant {
     UnmatchedParentheses,
+    ExpectExpression(u32, char),
 }
 
-impl fmt::Display for ParserErrorVariant {
+impl fmt::Display for SyntaxErrorVariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParserErrorVariant::UnmatchedParentheses => write!(f, "Unmatched parentheses."),
+            SyntaxErrorVariant::UnmatchedParentheses => write!(f, "Unmatched parentheses."),
+            SyntaxErrorVariant::ExpectExpression(_, _) => write!(f, "Expect expression."),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ParserError {
-    variant: ParserErrorVariant,
+pub struct SyntaxError {
+    variant: SyntaxErrorVariant,
 }
 
-impl ParserError {
-    fn new(variant: ParserErrorVariant) -> Self {
+impl SyntaxError {
+    fn new(variant: SyntaxErrorVariant) -> Self {
         Self { variant }
     }
 }
 
-impl fmt::Display for ParserError {
+impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Error: {}", self.variant)
+        match self.variant {
+            SyntaxErrorVariant::UnmatchedParentheses => write!(f, "Error: {}", self.variant),
+            SyntaxErrorVariant::ExpectExpression(line, ch) => {
+                write!(f, "[line {line}] Error at '{ch}': {}", self.variant)
+            }
+        }
     }
 }
 
@@ -124,9 +140,9 @@ fn get_index_of_closing_paren(tokens: &Vec<Token>, start: usize) -> Option<usize
 fn parse_sub_expression(
     tokens: &Vec<Token>,
     index: &mut usize,
-) -> Result<Rc<RefCell<TreeNode>>, Vec<ParserError>> {
+) -> Result<Rc<RefCell<TreeNode>>, Vec<SyntaxError>> {
     if let Some(pos) = get_index_of_closing_paren(tokens, *index) {
-        match parse(&tokens[*index + 1..pos].to_vec()) {
+        match parse(&tokens[*index + 1..=pos].to_vec()) {
             Ok(ref new_tree) => {
                 if let Some(ref new_node) = new_tree.root {
                     new_node.borrow_mut().group_count += 1;
@@ -137,17 +153,13 @@ fn parse_sub_expression(
             Err(e) => return Err(e),
         }
     }
-    Err(vec![ParserError::new(
-        ParserErrorVariant::UnmatchedParentheses,
+    Err(vec![SyntaxError::new(
+        SyntaxErrorVariant::UnmatchedParentheses,
     )])
 }
 
-pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
-    if tokens.is_empty() {
-        return Err(vec![ParserError::new(
-            ParserErrorVariant::UnmatchedParentheses,
-        )]);
-    }
+pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<SyntaxError>> {
+    let mut errors = Vec::new();
     let mut ast = Tree::new();
     let mut i = 0;
     let mut current: Option<Rc<RefCell<TreeNode>>> = None;
@@ -155,7 +167,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     let mut last_precedence: u32 = 99;
     while i < tokens.len() {
         match tokens[i].variant {
-            TokenVariant::Eof => {}
+            TokenVariant::Eof | TokenVariant::RightParen => {}
             _ if tokens[i].is_unary_operator() && tm != Operator => match tm {
                 Root => {
                     let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
@@ -174,7 +186,10 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                 _ => panic!("Unhandled unary case: {tm:?}"),
             },
             _ if tokens[i].is_binary_operator() => match tm {
-                Root => panic!("Expected the tree to be initialized at this point."),
+                Root => errors.push(SyntaxError::new(SyntaxErrorVariant::ExpectExpression(
+                    tokens[i].line,
+                    tokens[i].lexeme.chars().last().unwrap(),
+                ))),
                 Operator if tokens[i].get_precedence() > last_precedence => {
                     let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
                     match &ast.root {
@@ -242,5 +257,20 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
         }
         i += 1;
     }
-    Ok(ast)
+    match &ast.root {
+        Some(r) => {
+            if !r.borrow().is_structured() {
+                errors.push(SyntaxError::new(SyntaxErrorVariant::ExpectExpression(
+                    tokens[i - 1].line,
+                    tokens[i - 1].lexeme.chars().last().unwrap(),
+                )));
+            }
+        }
+        None => errors.push(SyntaxError::new(SyntaxErrorVariant::UnmatchedParentheses))
+    }
+    if !errors.is_empty() {
+        Err(errors)
+    } else {
+        Ok(ast)
+    }
 }

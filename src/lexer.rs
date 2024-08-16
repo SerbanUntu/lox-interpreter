@@ -98,6 +98,7 @@ impl fmt::Display for TokenVariant {
 pub struct Token {
     pub variant: TokenVariant,
     pub lexeme: String,
+    pub line: u32,
 }
 
 impl fmt::Display for Token {
@@ -113,8 +114,8 @@ impl fmt::Display for Token {
     }
 }
 
-impl From<&str> for Token {
-    fn from(literal: &str) -> Self {
+impl From<(&str, u32)> for Token {
+    fn from((literal, line): (&str, u32)) -> Self {
         Self {
             variant: match literal {
                 "=" => TokenVariant::Equal,
@@ -161,15 +162,17 @@ impl From<&str> for Token {
                 _ => TokenVariant::Identifier,
             },
             lexeme: literal.to_owned(),
+            line
         }
     }
 }
 
-impl From<TokenVariant> for Token {
-    fn from(variant: TokenVariant) -> Self {
+impl From<(TokenVariant, u32)> for Token {
+    fn from((variant, line): (TokenVariant, u32)) -> Self {
         Self {
             variant,
             lexeme: "".to_owned(),
+            line
         }
     }
 }
@@ -250,11 +253,11 @@ impl fmt::Display for LexicalError {
     }
 }
 
-fn process_char(buf: &mut String, c: Option<char>) -> (Vec<Token>, Vec<LexicalErrorVariant>) {
+fn process_char(buf: &mut String, c: Option<char>, current_line: u32) -> (Vec<Token>, Vec<LexicalErrorVariant>) {
     let mut tokens: Vec<Token> = Vec::new();
     let mut errors: Vec<LexicalErrorVariant> = Vec::new();
     let joined = format!("{}{}", buf.as_str(), c.unwrap_or('\0'));
-    let try_token = Token::from(joined.as_str());
+    let try_token = Token::from((joined.as_str(), current_line));
     match try_token.variant {
         TokenVariant::Bang
         | TokenVariant::Equal
@@ -266,9 +269,9 @@ fn process_char(buf: &mut String, c: Option<char>) -> (Vec<Token>, Vec<LexicalEr
         TokenVariant::Number(_) | TokenVariant::Identifier | TokenVariant::Eof => {
             match (buf.as_str(), c) {
                 (s, _) if matches!(s, "=" | "!" | "<" | ">" | "/") => {
-                    tokens.push(Token::from(s));
+                    tokens.push(Token::from((s, current_line)));
                     buf.clear();
-                    let (mut t, mut e) = process_char(buf, c);
+                    let (mut t, mut e) = process_char(buf, c, current_line);
                     tokens.append(&mut t);
                     errors.append(&mut e);
                 }
@@ -285,12 +288,12 @@ fn process_char(buf: &mut String, c: Option<char>) -> (Vec<Token>, Vec<LexicalEr
                     buf.push(digit);
                 }
                 (s, _) if s.parse::<f64>().is_ok() => {
-                    tokens.push(Token::from(s.trim_matches('.')));
+                    tokens.push(Token::from((s.trim_matches('.'), current_line)));
                     if s.ends_with('.') {
-                        tokens.push(Token::from("."));
+                        tokens.push(Token::from((".", current_line)));
                     }
                     buf.clear();
-                    let (mut t, mut e) = process_char(buf, c);
+                    let (mut t, mut e) = process_char(buf, c, current_line);
                     tokens.append(&mut t);
                     errors.append(&mut e);
                 }
@@ -298,9 +301,9 @@ fn process_char(buf: &mut String, c: Option<char>) -> (Vec<Token>, Vec<LexicalEr
                     buf.push(c);
                 }
                 (s, _) if !s.is_empty() && !s.starts_with('\"') => {
-                    tokens.push(Token::from(s));
+                    tokens.push(Token::from((s, current_line)));
                     buf.clear();
-                    let (mut t, mut e) = process_char(buf, c);
+                    let (mut t, mut e) = process_char(buf, c, current_line);
                     tokens.append(&mut t);
                     errors.append(&mut e);
                 }
@@ -341,7 +344,7 @@ pub fn tokenize(file_contents: &String) -> (Vec<Token>, Option<Vec<LexicalError>
                 current_line += 1;
             }
             (_, false) => {
-                let (t, e) = process_char(&mut buf, c);
+                let (t, e) = process_char(&mut buf, c, current_line);
                 for token in t {
                     if token.variant == TokenVariant::Comment {
                         is_comment = true;
@@ -356,6 +359,6 @@ pub fn tokenize(file_contents: &String) -> (Vec<Token>, Option<Vec<LexicalError>
             _ => {}
         }
     }
-    tokens.push(Token::from(TokenVariant::Eof));
+    tokens.push(Token::from((TokenVariant::Eof, current_line)));
     (tokens, (!errors.is_empty()).then(|| errors))
 }

@@ -36,7 +36,13 @@ fn main() {
         }
         "parse" => {
             writeln!(io::stderr(), "Results from parser").unwrap();
-            let (tokens, _) = lexer::tokenize(&file_contents);
+            let (tokens, errors) = lexer::tokenize(&file_contents);
+            if let Some(e) = errors {
+                for error in e {
+                    eprintln!("{}", error);
+                }
+                exit(65);
+            }
             match parser::parse(&tokens) {
                 Ok(abstract_syntax_tree) => {
                     if let Some(x) = abstract_syntax_tree.root {
