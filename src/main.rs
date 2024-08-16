@@ -1,10 +1,13 @@
 mod lexer;
 mod parser;
+mod evaluator;
 
 use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
+
+use evaluator::evaluate;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -56,6 +59,29 @@ fn main() {
                     exit(65);
                 }
             }
+        }
+        "evaluate" => {
+            writeln!(io::stderr(), "Results from evaluator").unwrap();
+            let (tokens, errors) = lexer::tokenize(&file_contents);
+            if let Some(e) = errors {
+                for error in e {
+                    eprintln!("{}", error);
+                }
+                exit(65);
+            }
+            match parser::parse(&tokens) {
+                Ok(mut abstract_syntax_tree) => {
+                    let (output, _) = evaluator::evaluate(&mut abstract_syntax_tree);
+                    println!("{}", output.value_print());
+                }
+                Err(e) => {
+                    for error in e {
+                        eprintln!("{}", error);
+                    }
+                    exit(65);
+                }
+            }
+
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();

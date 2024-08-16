@@ -6,9 +6,9 @@ use crate::lexer::{Token, TokenVariant};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct TreeNode {
-    value: Token,
-    left: Option<Rc<RefCell<TreeNode>>>,
-    right: Option<Rc<RefCell<TreeNode>>>,
+    pub value: Token,
+    pub left: Option<Rc<RefCell<TreeNode>>>,
+    pub right: Option<Rc<RefCell<TreeNode>>>,
     group_count: u32,
 }
 
@@ -67,7 +67,7 @@ pub struct Tree {
 }
 
 impl Tree {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { root: None }
     }
 }

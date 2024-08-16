@@ -185,7 +185,17 @@ impl Token {
         if let TokenVariant::Number(x) = self.variant {
             return format!("{:?}", x);
         }
-        return self.lexeme.clone();
+        self.lexeme.clone()
+    }
+
+    pub fn value_print(&self) -> String {
+        if let TokenVariant::String(x) = &self.variant {
+            return x.clone();
+        }
+        if let TokenVariant::Number(x) = self.variant {
+            return format!("{}", x);
+        }
+        self.lexeme.clone()
     }
 
     pub fn is_unary_operator(&self) -> bool {
