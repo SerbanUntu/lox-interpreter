@@ -7,7 +7,7 @@ use crate::lexer::{Token, TokenVariant};
 #[derive(PartialEq, Clone, Debug)]
 pub struct TreeNode {
     value: Token,
-    left: Option<Rc<RefCell<TreeNode>>>, //TODO rewrite using Option<Rc<RefCell<TreeNode>>>
+    left: Option<Rc<RefCell<TreeNode>>>,
     right: Option<Rc<RefCell<TreeNode>>>,
     group_count: u32,
 }
@@ -93,15 +93,56 @@ impl fmt::Display for ParserError {
     }
 }
 
-#[derive(PartialEq)]
-enum WhereToAdd {
-    Left,
-    Right,
+#[derive(Debug, PartialEq)]
+enum TreeManipulation {
+    Root,
+    Operator,
     RightChild,
 }
 
-pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
-    tokens.pop();
+use TreeManipulation::*;
+
+fn get_index_of_closing_paren(tokens: &Vec<Token>, start: usize) -> Option<usize> {
+    let mut stack_size = 0;
+    for (t_index, t) in tokens.iter().enumerate().skip(start) {
+        match t.variant {
+            TokenVariant::LeftParen => {
+                stack_size += 1;
+            }
+            TokenVariant::RightParen => {
+                stack_size -= 1;
+                if stack_size == 0 {
+                    return Some(t_index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn parse_sub_expression(
+    tokens: &Vec<Token>,
+    index: &mut usize,
+) -> Result<Rc<RefCell<TreeNode>>, Vec<ParserError>> {
+    if let Some(pos) = get_index_of_closing_paren(tokens, *index) {
+        match parse(&tokens[*index + 1..pos].to_vec()) {
+            Ok(ref new_tree) => {
+                if let Some(ref new_node) = new_tree.root {
+                    new_node.borrow_mut().group_count += 1;
+                    *index += pos;
+                    return Ok(Rc::clone(&new_node));
+                }
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(vec![ParserError::new(
+        ParserErrorVariant::UnmatchedParentheses,
+    )])
+}
+
+pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     if tokens.is_empty() {
         return Err(vec![ParserError::new(
             ParserErrorVariant::UnmatchedParentheses,
@@ -109,93 +150,92 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     }
     let mut ast = Tree::new();
     let mut i = 0;
-    let mut current_node: Rc<RefCell<TreeNode>> =
-        Rc::new(RefCell::new(TreeNode::new(tokens[0].clone(), 0)));
-    let mut wh: WhereToAdd = WhereToAdd::Left;
+    let mut current: Option<Rc<RefCell<TreeNode>>> = None;
+    let mut tm = Root;
+    let mut last_precedence: u32 = 99;
     while i < tokens.len() {
-        if tokens[i].variant == TokenVariant::LeftParen {
-            let mut stack_size = 0;
-            let mut desired_index: Option<usize> = None;
-            for (t_index, t) in tokens.iter().enumerate().skip(i) {
-                match t.variant {
-                    TokenVariant::LeftParen => {
-                        stack_size += 1;
-                    }
-                    TokenVariant::RightParen => {
-                        stack_size -= 1;
-                        if stack_size == 0 {
-                            desired_index = Some(t_index);
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if let Some(pos) = desired_index {
-                let result = parse(tokens[i + 1..=pos].to_vec());
-                if let Ok(new_tree) = result {
-                    if let Some(r) = new_tree.root {
-                        match wh {
-                            WhereToAdd::Left => {
-                                current_node = Rc::clone(&r);
-                                ast.root = Some(Rc::clone(&current_node));
-                                current_node.borrow_mut().group_count += 1;
-                            }
-                            _ => {
-                                let new_node = Rc::clone(&r);
-                                new_node.borrow_mut().group_count += 1;
-                                current_node.borrow_mut().right = Some(Rc::clone(&new_node));
-                            }
-                        }
-                    }
-                    i = pos + i;
-                } else {
-                    return result;
-                }
-            } else {
-                return Err(vec![ParserError::new(
-                    ParserErrorVariant::UnmatchedParentheses,
-                )]);
-            }
-        } else if tokens[i].is_unary_operator() {
-            match wh {
-                WhereToAdd::Left => {
-                    let new_node = TreeNode::new(tokens[i].clone(), 0);
-                    wh = WhereToAdd::Right;
-                    current_node = Rc::new(RefCell::new(new_node));
-                    ast.root = Some(Rc::clone(&current_node));
-                }
-                _ => {
+        match tokens[i].variant {
+            TokenVariant::Eof => {}
+            _ if tokens[i].is_unary_operator() => match tm {
+                Root => {
                     let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
-                    current_node.borrow_mut().right = Some(Rc::clone(&new_node));
-                    if ast.root.is_none() {
-                        ast.root = Some(Rc::clone(&current_node));
+                    ast.root = Some(Rc::clone(&new_node));
+                    current = Some(Rc::clone(&new_node));
+                    tm = RightChild;
+                }
+                RightChild => match &current {
+                    Some(current_node) => {
+                        let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                        current_node.borrow_mut().right = Some(Rc::clone(&new_node));
+                        current = Some(Rc::clone(&new_node));
                     }
-                    current_node = Rc::clone(&new_node);
+                    _ => panic!("Expected the current node to be populated at this point."),
+                },
+                _ => panic!("Unhandled unary case: {tm:?}"),
+            },
+            _ if tokens[i].is_binary_operator() => match tm {
+                Root => panic!("Expected the tree to be initialized at this point."),
+                Operator if tokens[i].get_precedence() > last_precedence => {
+                    let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                    match &ast.root {
+                        Some(root_node) => {
+                            match &root_node.borrow().right {
+                                Some(right_node) => {
+                                    new_node.borrow_mut().left = Some(Rc::clone(&right_node));
+                                    current = Some(Rc::clone(&new_node));
+                                    tm = RightChild;
+                                    last_precedence = tokens[i].get_precedence();
+                                }
+                                _ => {
+                                    panic!("Expected the root to have a right node at this point.")
+                                }
+                            }
+                            root_node.borrow_mut().right = Some(Rc::clone(&new_node));
+                        }
+                        _ => panic!("Expected the tree to be initialized at this point."),
+                    }
                 }
-            }
-        } else if tokens[i].is_binary_operator() {
-            let mut new_node = TreeNode::new(tokens[i].clone(), 0);
-            new_node.left = Some(Rc::clone(&ast.root.unwrap()));
-            wh = WhereToAdd::Right;
-            current_node = Rc::new(RefCell::new(new_node));
-            ast.root = Some(Rc::clone(&current_node));
-        } else {
-            match wh {
-                WhereToAdd::Left => {
-                    current_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
-                    ast.root = Some(Rc::clone(&current_node));
+                Operator => {
+                    let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                    let root_node = ast.root.unwrap();
+                    new_node.borrow_mut().left = Some(Rc::clone(&root_node));
+                    ast.root = Some(Rc::clone(&new_node));
+                    current = Some(Rc::clone(&new_node));
+                    tm = RightChild;
+                    last_precedence = tokens[i].get_precedence();
                 }
-                WhereToAdd::Right => {
-                    let new_node = TreeNode::new(tokens[i].clone(), 0);
-                    current_node.borrow_mut().right = Some(Rc::new(RefCell::new(new_node)));
+                _ => panic!("Unhandled binary case: {tm:?}"),
+            },
+            _ => {
+                let new_node;
+                if tokens[i].variant == TokenVariant::LeftParen {
+                    let result = parse_sub_expression(tokens, &mut i);
+                    match result {
+                        Ok(n) => new_node = n,
+                        Err(e) => return Err(e),
+                    }
+                } else {
+                    new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
                 }
-                WhereToAdd::RightChild => {
-                    let new_node_ref = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
-                    current_node.borrow_mut().right = Some(Rc::clone(&new_node_ref));
-                    current_node = Rc::clone(&new_node_ref);
-                    wh = WhereToAdd::Right;
+                match tm {
+                    Root => {
+                        ast.root = Some(Rc::clone(&new_node));
+                        current = Some(Rc::clone(&new_node));
+                        tm = Operator;
+                    }
+                    RightChild => match (&ast.root, &current) {
+                        (Some(_), Some(current_node)) => {
+                            current_node.borrow_mut().right = Some(Rc::clone(&new_node));
+                            current = Some(Rc::clone(&new_node));
+                            tm = Operator;
+                        }
+                        _ => {
+                            panic!("Expected the nodes to be populated at this point.")
+                        }
+                    },
+                    _ => panic!("Unhandled regular case: {tm:?}"),
                 }
+                tm = Operator;
             }
         }
         i += 1;

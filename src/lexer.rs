@@ -185,6 +185,13 @@ impl Token {
         return self.lexeme.clone();
     }
 
+    pub fn is_unary_operator(&self) -> bool {
+        match self.variant {
+            TokenVariant::Minus | TokenVariant::Bang => true,
+            _ => false,
+        }
+    }
+
     pub fn is_binary_operator(&self) -> bool {
         match self.variant {
             TokenVariant::Plus
@@ -201,10 +208,11 @@ impl Token {
         }
     }
 
-    pub fn is_unary_operator(&self) -> bool {
+    pub fn get_precedence(&self) -> u32 {
         match self.variant {
-            TokenVariant::Minus | TokenVariant::Bang => true,
-            _ => false,
+            TokenVariant::Plus | TokenVariant::Minus => 1,
+            TokenVariant::Slash | TokenVariant::Star => 2,
+            _ => 0
         }
     }
 }

@@ -37,7 +37,7 @@ fn main() {
         "parse" => {
             writeln!(io::stderr(), "Results from parser").unwrap();
             let (tokens, _) = lexer::tokenize(&file_contents);
-            match parser::parse(tokens) {
+            match parser::parse(&tokens) {
                 Ok(abstract_syntax_tree) => {
                     if let Some(x) = abstract_syntax_tree.root {
                         println!("{}", x.borrow().to_string());
