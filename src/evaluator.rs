@@ -1,6 +1,5 @@
 use crate::lexer::{Token, TokenVariant};
-use crate::parser::{Tree, TreeNode};
-use std::cell::RefCell;
+use crate::parser::Tree;
 use std::rc::Rc;
 use TokenVariant::*;
 
@@ -34,6 +33,25 @@ pub fn evaluate(ast: &mut Tree) -> (Token, Vec<RuntimeError>) {
                         (Minus, Number(a), Number(b)) => {
                             (Token::from((Number(a - b), 0)), Vec::new())
                         }
+                        (Star, Number(a), Number(b)) => {
+                            (Token::from((Number(a * b), 0)), Vec::new())
+                        }
+                        (Slash, Number(a), Number(b)) => {
+                            (Token::from((Number(a / b), 0)), Vec::new())
+                        }
+                        (Plus, String(a), String(b)) => {
+                            (Token::from((String(format!("{a}{b}")), 0)), Vec::new())
+                        }
+                        _ => {
+                            panic!("Unhandled operation");
+                        }
+                    }
+                }
+                (None, Some(v)) => {
+                    match (&root_node.borrow().value.variant, &v.borrow().value.variant) {
+                        (Bang, Nil) | (Bang, False) => (Token::from((True, 0)), Vec::new()),
+                        (Bang, Number(_)) | (Bang, True) => (Token::from((False, 0)), Vec::new()),
+                        (Minus, Number(x)) => (Token::from((Number(-x), 0)), Vec::new()),
                         _ => {
                             panic!("Unhandled operation");
                         }

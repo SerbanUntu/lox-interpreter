@@ -7,8 +7,6 @@ use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
 
-use evaluator::evaluate;
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {

@@ -236,13 +236,11 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<SyntaxError>> {
                     Root => {
                         ast.root = Some(Rc::clone(&new_node));
                         current = Some(Rc::clone(&new_node));
-                        tm = Operator;
                     }
                     RightChild => match (&ast.root, &current) {
                         (Some(_), Some(current_node)) => {
                             current_node.borrow_mut().right = Some(Rc::clone(&new_node));
                             current = Some(Rc::clone(&new_node));
-                            tm = Operator;
                         }
                         _ => {
                             panic!("Expected the nodes to be populated at this point.")

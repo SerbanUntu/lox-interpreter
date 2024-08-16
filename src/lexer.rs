@@ -195,7 +195,7 @@ impl Token {
         if let TokenVariant::Number(x) = self.variant {
             return format!("{}", x);
         }
-        self.lexeme.clone()
+        self.variant.to_string().to_lowercase()
     }
 
     pub fn is_unary_operator(&self) -> bool {
