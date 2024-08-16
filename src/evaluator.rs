@@ -42,17 +42,43 @@ pub fn evaluate(ast: &mut Tree) -> (Token, Vec<RuntimeError>) {
                         (Plus, String(a), String(b)) => {
                             (Token::from((String(format!("{a}{b}")), 0)), Vec::new())
                         }
-                        (Less, Number(a), Number(b)) => {
-                            (Token::from((if a < b { True } else { False }, 0)), Vec::new())
+                        (Less, Number(a), Number(b)) => (
+                            Token::from((if a < b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (LessEqual, Number(a), Number(b)) => (
+                            Token::from((if a <= b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (Greater, Number(a), Number(b)) => (
+                            Token::from((if a > b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (GreaterEqual, Number(a), Number(b)) => (
+                            Token::from((if a >= b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (EqualEqual, Number(a), Number(b)) => (
+                            Token::from((if a == b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (BangEqual, Number(a), Number(b)) => (
+                            Token::from((if a != b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (EqualEqual, String(a), String(b)) => (
+                            Token::from((if a == b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (BangEqual, String(a), String(b)) => (
+                            Token::from((if a != b { True } else { False }, 0)),
+                            Vec::new(),
+                        ),
+                        (EqualEqual, Number(_), String(_)) | (EqualEqual, String(_), Number(_)) => {
+                            (Token::from((False, 0)), Vec::new())
                         }
-                        (LessEqual, Number(a), Number(b)) => {
-                            (Token::from((if a <= b { True } else { False }, 0)), Vec::new())
-                        }
-                        (Greater, Number(a), Number(b)) => {
-                            (Token::from((if a > b { True } else { False }, 0)), Vec::new())
-                        }
-                        (GreaterEqual, Number(a), Number(b)) => {
-                            (Token::from((if a >= b { True } else { False }, 0)), Vec::new())
+                        (BangEqual, Number(_), String(_)) | (BangEqual, String(_), Number(_)) => {
+                            (Token::from((True, 0)), Vec::new())
                         }
                         _ => {
                             panic!("Unhandled operation");
