@@ -1,12 +1,14 @@
 use core::fmt;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use crate::lexer::{Token, TokenVariant};
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct TreeNode {
     value: Token,
-    left: Option<Box<TreeNode>>, //TODO rewrite using Option<Rc<RefCell<TreeNode>>>
-    right: Option<Box<TreeNode>>,
+    left: Option<Rc<RefCell<TreeNode>>>, //TODO rewrite using Option<Rc<RefCell<TreeNode>>>
+    right: Option<Rc<RefCell<TreeNode>>>,
     group_count: u32,
 }
 
@@ -28,11 +30,15 @@ impl ToString for TreeNode {
             (Some(left), Some(right), 0) => format!(
                 "({} {} {})",
                 self.value.short_print(),
-                left.to_string(),
-                right.to_string()
+                left.borrow().to_string(),
+                right.borrow().to_string()
             ),
             (None, Some(right), 0) => {
-                format!("({} {})", self.value.short_print(), right.to_string())
+                format!(
+                    "({} {})",
+                    self.value.short_print(),
+                    right.borrow().to_string()
+                )
             }
             (Some(_), None, _) => {
                 panic!("Invalid tree structure");
@@ -48,7 +54,7 @@ impl ToString for TreeNode {
 
 #[derive(Debug)]
 pub struct Tree {
-    pub root: Option<Box<TreeNode>>,
+    pub root: Option<Rc<RefCell<TreeNode>>>,
 }
 
 impl Tree {
@@ -102,7 +108,8 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     }
     let mut ast = Tree::new();
     let mut i = 0;
-    let mut current_node: TreeNode = TreeNode::new(tokens[0].clone(), 0);
+    let mut current_node: Rc<RefCell<TreeNode>> =
+        Rc::new(RefCell::new(TreeNode::new(tokens[0].clone(), 0)));
     let mut current_adding: TreePart = TreePart::Left;
     while i < tokens.len() {
         if tokens[i].variant == TokenVariant::LeftParen {
@@ -129,15 +136,14 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                     if let Some(r) = new_tree.root {
                         match current_adding {
                             TreePart::Left => {
-                                current_node = *r;
-                                current_node.group_count += 1;
-                                ast.root = Some(Box::new(current_node.clone()));
+                                current_node = Rc::clone(&r);
+                                ast.root = Some(Rc::clone(&current_node));
+                                current_node.borrow_mut().group_count += 1;
                             }
                             _ => {
-                                let mut new_node = *r;
-                                new_node.group_count += 1;
-                                current_node.right = Some(Box::new(new_node.clone()));
-                                ast.root = Some(Box::new(current_node.clone()));
+                                let new_node = Rc::clone(&r);
+                                new_node.borrow_mut().group_count += 1;
+                                current_node.borrow_mut().right = Some(Rc::clone(&new_node));
                             }
                         }
                     }
@@ -155,31 +161,30 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                 TreePart::Left => {
                     let new_node = TreeNode::new(tokens[i].clone(), 0);
                     current_adding = TreePart::Right;
-                    current_node = new_node.clone();
-                    ast.root = Some(Box::new(new_node));
+                    current_node = Rc::new(RefCell::new(new_node));
+                    ast.root = Some(Rc::clone(&current_node));
                 }
                 _ => {
                     let mut new_node = TreeNode::new(tokens[i].clone(), 0);
-                    new_node.right = Some(Box::new(current_node.clone()));
-                    ast.root = Some(Box::new(new_node));
+                    new_node.right = Some(Rc::clone(&ast.root.unwrap()));
+                    ast.root = Some(Rc::new(RefCell::new(new_node)));
                 }
             }
         } else if tokens[i].is_binary_operator() {
             let mut new_node = TreeNode::new(tokens[i].clone(), 0);
-            new_node.left = Some(Box::new(current_node.clone()));
+            new_node.left = Some(Rc::clone(&current_node));
             current_adding = TreePart::Right;
-            current_node = new_node.clone();
-            ast.root = Some(Box::new(new_node));
+            current_node = Rc::new(RefCell::new(new_node));
+            ast.root = Some(Rc::clone(&current_node));
         } else {
             match current_adding {
                 TreePart::Left => {
-                    current_node = TreeNode::new(tokens[i].clone(), 0);
-                    ast.root = Some(Box::new(current_node.clone()));
+                    current_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                    ast.root = Some(Rc::clone(&current_node));
                 }
                 _ => {
                     let new_node = TreeNode::new(tokens[i].clone(), 0);
-                    current_node.right = Some(Box::new(new_node.clone()));
-                    ast.root = Some(Box::new(current_node.clone()));
+                    current_node.borrow_mut().right = Some(Rc::new(RefCell::new(new_node)));
                 }
             }
         }

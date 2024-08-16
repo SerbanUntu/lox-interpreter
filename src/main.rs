@@ -40,7 +40,7 @@ fn main() {
             match parser::parse(tokens) {
                 Ok(abstract_syntax_tree) => {
                     if let Some(x) = abstract_syntax_tree.root {
-                        println!("{}", x.to_string());
+                        println!("{}", x.borrow().to_string());
                     }
                 }
                 Err(e) => {
