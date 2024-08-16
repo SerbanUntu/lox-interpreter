@@ -75,7 +75,7 @@ fn main() {
                             for error in e {
                                 eprintln!("{}", error);
                             }
-                            exit(65);
+                            exit(70);
                         }
                     }
                 }
