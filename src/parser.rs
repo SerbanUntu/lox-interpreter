@@ -94,9 +94,10 @@ impl fmt::Display for ParserError {
 }
 
 #[derive(PartialEq)]
-enum TreePart {
+enum WhereToAdd {
     Left,
     Right,
+    RightChild,
 }
 
 pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
@@ -110,7 +111,7 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
     let mut i = 0;
     let mut current_node: Rc<RefCell<TreeNode>> =
         Rc::new(RefCell::new(TreeNode::new(tokens[0].clone(), 0)));
-    let mut current_adding: TreePart = TreePart::Left;
+    let mut wh: WhereToAdd = WhereToAdd::Left;
     while i < tokens.len() {
         if tokens[i].variant == TokenVariant::LeftParen {
             let mut stack_size = 0;
@@ -134,8 +135,8 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                 let result = parse(tokens[i + 1..=pos].to_vec());
                 if let Ok(new_tree) = result {
                     if let Some(r) = new_tree.root {
-                        match current_adding {
-                            TreePart::Left => {
+                        match wh {
+                            WhereToAdd::Left => {
                                 current_node = Rc::clone(&r);
                                 ast.root = Some(Rc::clone(&current_node));
                                 current_node.borrow_mut().group_count += 1;
@@ -157,34 +158,43 @@ pub fn parse(mut tokens: Vec<Token>) -> Result<Tree, Vec<ParserError>> {
                 )]);
             }
         } else if tokens[i].is_unary_operator() {
-            match current_adding {
-                TreePart::Left => {
+            match wh {
+                WhereToAdd::Left => {
                     let new_node = TreeNode::new(tokens[i].clone(), 0);
-                    current_adding = TreePart::Right;
+                    wh = WhereToAdd::Right;
                     current_node = Rc::new(RefCell::new(new_node));
                     ast.root = Some(Rc::clone(&current_node));
                 }
                 _ => {
-                    let mut new_node = TreeNode::new(tokens[i].clone(), 0);
-                    new_node.right = Some(Rc::clone(&ast.root.unwrap()));
-                    ast.root = Some(Rc::new(RefCell::new(new_node)));
+                    let new_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                    current_node.borrow_mut().right = Some(Rc::clone(&new_node));
+                    if ast.root.is_none() {
+                        ast.root = Some(Rc::clone(&current_node));
+                    }
+                    current_node = Rc::clone(&new_node);
                 }
             }
         } else if tokens[i].is_binary_operator() {
             let mut new_node = TreeNode::new(tokens[i].clone(), 0);
-            new_node.left = Some(Rc::clone(&current_node));
-            current_adding = TreePart::Right;
+            new_node.left = Some(Rc::clone(&ast.root.unwrap()));
+            wh = WhereToAdd::Right;
             current_node = Rc::new(RefCell::new(new_node));
             ast.root = Some(Rc::clone(&current_node));
         } else {
-            match current_adding {
-                TreePart::Left => {
+            match wh {
+                WhereToAdd::Left => {
                     current_node = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
                     ast.root = Some(Rc::clone(&current_node));
                 }
-                _ => {
+                WhereToAdd::Right => {
                     let new_node = TreeNode::new(tokens[i].clone(), 0);
                     current_node.borrow_mut().right = Some(Rc::new(RefCell::new(new_node)));
+                }
+                WhereToAdd::RightChild => {
+                    let new_node_ref = Rc::new(RefCell::new(TreeNode::new(tokens[i].clone(), 0)));
+                    current_node.borrow_mut().right = Some(Rc::clone(&new_node_ref));
+                    current_node = Rc::clone(&new_node_ref);
+                    wh = WhereToAdd::Right;
                 }
             }
         }

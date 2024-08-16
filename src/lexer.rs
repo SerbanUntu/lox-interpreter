@@ -187,15 +187,24 @@ impl Token {
 
     pub fn is_binary_operator(&self) -> bool {
         match self.variant {
-            TokenVariant::Plus | TokenVariant::Minus | TokenVariant::Star | TokenVariant::Slash => true,
-            _ => false
+            TokenVariant::Plus
+            | TokenVariant::Minus
+            | TokenVariant::Star
+            | TokenVariant::Slash
+            | TokenVariant::EqualEqual
+            | TokenVariant::BangEqual
+            | TokenVariant::Less
+            | TokenVariant::LessEqual
+            | TokenVariant::Greater
+            | TokenVariant::GreaterEqual => true,
+            _ => false,
         }
     }
 
     pub fn is_unary_operator(&self) -> bool {
         match self.variant {
             TokenVariant::Minus | TokenVariant::Bang => true,
-            _ => false
+            _ => false,
         }
     }
 }
