@@ -136,6 +136,30 @@ pub fn evaluate(ast: &mut Tree) -> Result<Token, Vec<RuntimeError>> {
                         (Slash, _, _) => {
                             errors.push(RuntimeError::new(MustBeNumbers, l.borrow().value.line));
                         }
+                        (Less, Number(_), _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, r.borrow().value.line));
+                        }
+                        (Less, _, _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, l.borrow().value.line));
+                        }
+                        (LessEqual, Number(_), _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, r.borrow().value.line));
+                        }
+                        (LessEqual, _, _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, l.borrow().value.line));
+                        }
+                        (Greater, Number(_), _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, r.borrow().value.line));
+                        }
+                        (Greater, _, _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, l.borrow().value.line));
+                        }
+                        (GreaterEqual, Number(_), _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, r.borrow().value.line));
+                        }
+                        (GreaterEqual, _, _) => {
+                            errors.push(RuntimeError::new(MustBeNumbers, l.borrow().value.line));
+                        }
                         _ => {
                             panic!("Unhandled operation");
                         }
