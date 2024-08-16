@@ -191,6 +191,13 @@ impl Token {
             _ => false
         }
     }
+
+    pub fn is_unary_operator(&self) -> bool {
+        match self.variant {
+            TokenVariant::Minus | TokenVariant::Bang => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug)]
