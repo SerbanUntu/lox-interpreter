@@ -264,7 +264,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Tree, Vec<SyntaxError>> {
                 )));
             }
         }
-        None => errors.push(SyntaxError::new(SyntaxErrorVariant::UnmatchedParentheses))
+        None => errors.push(SyntaxError::new(SyntaxErrorVariant::UnmatchedParentheses)),
     }
     if !errors.is_empty() {
         Err(errors)

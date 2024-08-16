@@ -69,8 +69,15 @@ fn main() {
             }
             match parser::parse(&tokens) {
                 Ok(mut abstract_syntax_tree) => {
-                    let (output, _) = evaluator::evaluate(&mut abstract_syntax_tree);
-                    println!("{}", output.value_print());
+                    match evaluator::evaluate(&mut abstract_syntax_tree) {
+                        Ok(output) => println!("{}", output.value_print()),
+                        Err(e) => {
+                            for error in e {
+                                eprintln!("{}", error);
+                            }
+                            exit(65);
+                        }
+                    }
                 }
                 Err(e) => {
                     for error in e {
